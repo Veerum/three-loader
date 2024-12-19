@@ -7,7 +7,7 @@ module.exports = {
   entry: './src/index.ts',
   output: {
     path: path.resolve(__dirname, 'build'),
-    filename: 'potree.cjs',
+    filename: 'index.cjs',
     library: {
       type: 'umd',
       umdNamedDefine: true,

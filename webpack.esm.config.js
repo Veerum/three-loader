@@ -8,7 +8,7 @@ module.exports = {
   },
   output: {
     path: path.resolve(__dirname, 'build'),
-    filename: 'potree.mjs',
+    filename: 'index.mjs',
     module: true,
     library: {
       type: 'module',
