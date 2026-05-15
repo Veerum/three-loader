@@ -75,6 +75,13 @@ out vec4 outFragColor;
 
 float specularStrength = 1.0;
 
+vec3 srgbToLinear(vec3 value) {
+	value = max(value, vec3(0.0));
+	vec3 lower = value / 12.92;
+	vec3 higher = pow((value + 0.055) / 1.055, vec3(2.4));
+	return mix(higher, lower, step(value, vec3(0.04045)));
+}
+
 void main() {
 	vec3 color = vColor;
 	float depth = gl_FragCoord.z;
@@ -299,12 +306,12 @@ void main() {
 		#endif
 
 		#if defined(use_edl)
-			outFragColor.a = log2(linearDepth);
+			outFragColor.a = max(log2(max(linearDepth, 1e-6)) + 1.0, 1e-6);
 		#endif
 
 	#else
 		#if defined(use_edl)
-			outFragColor.a = vLogDepth;
+			outFragColor.a = max(vLogDepth + 1.0, 1e-6);
 		#endif
 	#endif
 
@@ -319,5 +326,9 @@ void main() {
 		if (vHighlight > 0.0) {
 			outFragColor = highlightedPointColor;
 		}
+	#endif
+
+	#ifdef use_edl
+		outFragColor.rgb = srgbToLinear(outFragColor.rgb);
 	#endif
 }
