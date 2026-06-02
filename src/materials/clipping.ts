@@ -7,6 +7,7 @@ export enum ClipMode {
   CLIP_HORIZONTALLY = 3,
   CLIP_VERTICALLY = 4,
   CLIP_INSIDE = 5,
+  COLOR_INSIDE = 6,
 }
 
 export interface IClipBox {

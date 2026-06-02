@@ -40,6 +40,9 @@ uniform float maxSize; // maximum pixel size
 uniform float octreeSize;
 uniform vec3 bbSize;
 uniform vec3 uColor;
+uniform vec3 clipColor;
+uniform float clipInsideOpacity;
+uniform float clipOutsideOpacity;
 uniform float opacity;
 uniform float clipBoxCount;
 uniform float level;
@@ -611,10 +614,15 @@ void main() {
 				gl_Position = vec4(1000.0, 1000.0, 1000.0, 1.0);
 			#elif defined clip_highlight_inside && !defined(color_type_depth)
 				float c = (vColor.r + vColor.g + vColor.b) / 6.0;
+			#elif defined clip_color_inside && !defined(color_type_depth) && !defined(color_type_point_index)
+				vOpacity = clipOutsideOpacity;
 			#endif
 		} else {
 			#if defined clip_highlight_inside
 				vColor.r += 0.5;
+			#elif defined clip_color_inside && !defined(color_type_depth) && !defined(color_type_point_index)
+				vColor = clipColor;
+				vOpacity = clipInsideOpacity;
 			#elif defined clip_inside
 				gl_Position = vec4(1000.0, 1000.0, 1000.0, 1.0);
 			#endif

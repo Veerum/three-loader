@@ -65,6 +65,9 @@ export interface IPointCloudMaterialUniforms {
   classificationLUT: IUniform<Texture>;
   clipBoxCount: IUniform<number>;
   clipBoxesTexture: IUniform<Texture>;
+  clipColor: IUniform<Color>;
+  clipInsideOpacity: IUniform<number>;
+  clipOutsideOpacity: IUniform<number>;
   clipExtent: IUniform<[number, number, number, number]>;
   depthMap: IUniform<Texture | null>;
   diffuse: IUniform<[number, number, number]>;
@@ -165,6 +168,7 @@ const CLIP_MODE_DEFS = {
   [ClipMode.CLIP_HORIZONTALLY]: 'clip_horizontally',
   [ClipMode.CLIP_VERTICALLY]: 'clip_vertically',
   [ClipMode.CLIP_INSIDE]: 'clip_inside',
+  [ClipMode.COLOR_INSIDE]: 'clip_color_inside',
 };
 
 export class PointCloudMaterial extends RawShaderMaterial {
@@ -203,6 +207,9 @@ export class PointCloudMaterial extends RawShaderMaterial {
     clipBoxCount: makeUniform('f', 0),
     // @ts-ignore
     clipBoxesTexture: makeUniform('t', this.clipBoxesTexture || new DataTexture()),
+    clipColor: makeUniform('c', new Color(0xff2fa3)),
+    clipInsideOpacity: makeUniform('f', 1),
+    clipOutsideOpacity: makeUniform('f', 1),
     clipExtent: makeUniform('fv', [0.0, 0.0, 1.0, 1.0] as [number, number, number, number]),
     depthMap: makeUniform('t', null),
     diffuse: makeUniform('fv', [1, 1, 1] as [number, number, number]),
@@ -259,6 +266,9 @@ export class PointCloudMaterial extends RawShaderMaterial {
   };
 
   @uniform('bbSize') bbSize!: [number, number, number];
+  @uniform('clipColor') clipColor!: Color;
+  @uniform('clipInsideOpacity', true) clipInsideOpacity!: number;
+  @uniform('clipOutsideOpacity', true) clipOutsideOpacity!: number;
   @uniform('clipExtent') clipExtent!: [number, number, number, number];
   @uniform('depthMap') depthMap!: Texture | undefined;
   @uniform('fov') fov!: number;
@@ -405,13 +415,17 @@ export class PointCloudMaterial extends RawShaderMaterial {
     this.vertexShader = this.applyDefines(require('./shaders/pointcloud.vert').default);
     this.fragmentShader = this.applyDefines(require('./shaders/pointcloud.frag').default);
 
-    if (this.opacity === 1.0) {
+    const hasClipOpacity =
+      this.clipMode === ClipMode.COLOR_INSIDE &&
+      (this.clipInsideOpacity < 1.0 || this.clipOutsideOpacity < 1.0);
+
+    if (this.opacity === 1.0 && !hasClipOpacity) {
       this.blending = NoBlending;
       this.transparent = false;
       this.depthTest = true;
       this.depthWrite = true;
       this.depthFunc = LessEqualDepth;
-    } else if (this.opacity < 1.0 && !this.useEDL) {
+    } else if ((this.opacity < 1.0 || hasClipOpacity) && !this.useEDL) {
       this.blending = AdditiveBlending;
       this.transparent = true;
       this.depthTest = false;
@@ -486,8 +500,8 @@ export class PointCloudMaterial extends RawShaderMaterial {
       define('color_rgba');
     }
 
-    if(this.hqDepthPass) {
-      define('hq_depth_pass')
+    if (this.hqDepthPass) {
+      define('hq_depth_pass');
     }
 
     define('MAX_POINT_LIGHTS 0');
@@ -692,15 +706,15 @@ export class PointCloudMaterial extends RawShaderMaterial {
       }
 
       const density = (node.geometryNode as any).density;
-      if(density && typeof density == 'number' && !Number.isNaN(density)){
-				let lodOffset = Math.log2(density) / 2 - 1.5;
+      if (density && typeof density == 'number' && !Number.isNaN(density)) {
+        let lodOffset = Math.log2(density) / 2 - 1.5;
 
-				let offsetUint8 = (lodOffset + 10) * 10;
+        let offsetUint8 = (lodOffset + 10) * 10;
 
-				data[i * 4 + 3] = offsetUint8;
-			} else {
-				data[i * 4 + 3] = 100;
-			}
+        data[i * 4 + 3] = offsetUint8;
+      } else {
+        data[i * 4 + 3] = 100;
+      }
       // data[i * 4 + 3] = node.name.length;
     }
 
