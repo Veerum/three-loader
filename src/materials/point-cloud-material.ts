@@ -65,6 +65,9 @@ export interface IPointCloudMaterialUniforms {
   classificationLUT: IUniform<Texture>;
   clipBoxCount: IUniform<number>;
   clipBoxesTexture: IUniform<Texture>;
+  clipHighlightColor: IUniform<Color>;
+  clipHighlightColorBoost: IUniform<number>;
+  clipHighlightColorEnabled: IUniform<boolean>;
   clipExtent: IUniform<[number, number, number, number]>;
   depthMap: IUniform<Texture | null>;
   diffuse: IUniform<[number, number, number]>;
@@ -203,6 +206,9 @@ export class PointCloudMaterial extends RawShaderMaterial {
     clipBoxCount: makeUniform('f', 0),
     // @ts-ignore
     clipBoxesTexture: makeUniform('t', this.clipBoxesTexture || new DataTexture()),
+    clipHighlightColor: makeUniform('c', new Color(0xffffff)),
+    clipHighlightColorBoost: makeUniform('f', 1.0),
+    clipHighlightColorEnabled: makeUniform('b', false),
     clipExtent: makeUniform('fv', [0.0, 0.0, 1.0, 1.0] as [number, number, number, number]),
     depthMap: makeUniform('t', null),
     diffuse: makeUniform('fv', [1, 1, 1] as [number, number, number]),
@@ -259,6 +265,9 @@ export class PointCloudMaterial extends RawShaderMaterial {
   };
 
   @uniform('bbSize') bbSize!: [number, number, number];
+  @uniform('clipHighlightColor') clipHighlightColor!: Color;
+  @uniform('clipHighlightColorBoost') clipHighlightColorBoost!: number;
+  @uniform('clipHighlightColorEnabled') clipHighlightColorEnabled!: boolean;
   @uniform('clipExtent') clipExtent!: [number, number, number, number];
   @uniform('depthMap') depthMap!: Texture | undefined;
   @uniform('fov') fov!: number;
