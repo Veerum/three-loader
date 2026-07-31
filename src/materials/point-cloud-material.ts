@@ -31,7 +31,7 @@ import { PointCloudOctree } from '../point-cloud-octree';
 import { PointCloudOctreeNode } from '../point-cloud-octree-node';
 import { byLevelAndIndex } from '../utils/utils';
 import { DEFAULT_CLASSIFICATION } from './classification';
-import { ClipMode, IClipBox } from './clipping';
+import { ClipMode, ClipShape, IClipBox } from './clipping';
 import {
   NormalFilteringMode,
   PointCloudMixingMode,
@@ -495,8 +495,8 @@ export class PointCloudMaterial extends RawShaderMaterial {
       define('color_rgba');
     }
 
-    if(this.hqDepthPass) {
-      define('hq_depth_pass')
+    if (this.hqDepthPass) {
+      define('hq_depth_pass');
     }
 
     define('MAX_POINT_LIGHTS 0');
@@ -532,11 +532,46 @@ export class PointCloudMaterial extends RawShaderMaterial {
     this.numClipBoxes = clipBoxes.length;
     this.setUniform('clipBoxCount', this.numClipBoxes);
 
-    const clipBoxesLength = this.numClipBoxes * 16;
+    // Each primitive occupies 8 RGBA texels (32 floats). Layout must match the
+    // clipping loop in pointcloud.vert:
+    //   [0..15]  inverse world matrix (box shape)
+    //   [16]     shape flag (0 = box, 1 = capsule)
+    //   [17]     capsule radius
+    //   [20..22] capsule endpoint A (world)
+    //   [24..26] capsule endpoint B (world)
+    //   [28..30] highlight color rgb, [31] hasColor flag
+    const STRIDE = 32;
+    const clipBoxesLength = this.numClipBoxes * STRIDE;
     const clipBoxesArray = new Float32Array(clipBoxesLength);
 
     for (let i = 0; i < this.numClipBoxes; i++) {
-      clipBoxesArray.set(clipBoxes[i].inverse.elements, 16 * i);
+      const primitive = clipBoxes[i];
+      const offset = STRIDE * i;
+
+      if (primitive.inverse) {
+        clipBoxesArray.set(primitive.inverse.elements, offset);
+      }
+
+      const shape = primitive.shape ?? ClipShape.Box;
+      clipBoxesArray[offset + 16] = shape;
+      clipBoxesArray[offset + 17] = primitive.radius ?? 0;
+
+      if (primitive.a) {
+        clipBoxesArray[offset + 20] = primitive.a.x;
+        clipBoxesArray[offset + 21] = primitive.a.y;
+        clipBoxesArray[offset + 22] = primitive.a.z;
+      }
+      if (primitive.b) {
+        clipBoxesArray[offset + 24] = primitive.b.x;
+        clipBoxesArray[offset + 25] = primitive.b.y;
+        clipBoxesArray[offset + 26] = primitive.b.z;
+      }
+      if (primitive.color) {
+        clipBoxesArray[offset + 28] = primitive.color.r;
+        clipBoxesArray[offset + 29] = primitive.color.g;
+        clipBoxesArray[offset + 30] = primitive.color.b;
+        clipBoxesArray[offset + 31] = 1;
+      }
     }
 
     for (let i = 0; i < clipBoxesLength; i++) {
@@ -701,15 +736,15 @@ export class PointCloudMaterial extends RawShaderMaterial {
       }
 
       const density = (node.geometryNode as any).density;
-      if(density && typeof density == 'number' && !Number.isNaN(density)){
-				let lodOffset = Math.log2(density) / 2 - 1.5;
+      if (density && typeof density == 'number' && !Number.isNaN(density)) {
+        let lodOffset = Math.log2(density) / 2 - 1.5;
 
-				let offsetUint8 = (lodOffset + 10) * 10;
+        let offsetUint8 = (lodOffset + 10) * 10;
 
-				data[i * 4 + 3] = offsetUint8;
-			} else {
-				data[i * 4 + 3] = 100;
-			}
+        data[i * 4 + 3] = offsetUint8;
+      } else {
+        data[i * 4 + 3] = 100;
+      }
       // data[i * 4 + 3] = node.name.length;
     }
 

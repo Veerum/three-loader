@@ -586,27 +586,65 @@ void main() {
 	// ---------------------
 
 	#if defined use_clip_box
+		// Each clip primitive occupies a stride of 8 RGBA texels in clipBoxesTexture:
+		//   texels 0-3 : 4x4 inverse world matrix (box shape only)
+		//   texel  4   : (shape, radius, reserved, reserved)
+		//   texel  5   : capsule endpoint A (xyz, world space)
+		//   texel  6   : capsule endpoint B (xyz, world space)
+		//   texel  7   : per-primitive highlight color (rgb) + hasColor flag (a)
+		// 256 is divisible by 8, so a primitive's texels never cross a texture row.
 		bool insideAny = false;
+		vec3 hitColor = vec3(0.0);
+		float hitColorFlag = 0.0;
+
+		vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+
 		for (int i = 0; i < max_clip_boxes; i++) {
 			if (i == int(clipBoxCount)) {
 				break;
 			}
 
-			float tx = mod(float(i) * 4.0, 256.0);
-			float ty = floor(float(i) * 4.0 / 256.0);
+			float base = float(i) * 8.0;
+			float row = floor(base / 256.0) / 256.0;
+			float t0 = mod(base, 256.0);
 
-			mat4 clipBox = mat4(
-				texture(clipBoxesTexture, vec2((tx + 0.0) / 256.0 , ty / 256.0)),
-				texture(clipBoxesTexture, vec2((tx + 1.0) / 256.0, ty / 256.0)),
-				texture(clipBoxesTexture, vec2((tx + 2.0) / 256.0, ty / 256.0)),
-				texture(clipBoxesTexture, vec2((tx + 3.0) / 256.0, ty / 256.0))
-			);
+			vec4 shapeTexel = texture(clipBoxesTexture, vec2((t0 + 4.0) / 256.0, row));
+			bool inside = false;
 
-			vec4 clipPosition = clipBox * modelMatrix * vec4(position, 1.0);
-			bool inside = -0.5 <= clipPosition.x && clipPosition.x <= 0.5;
-			inside = inside && -0.5 <= clipPosition.y && clipPosition.y <= 0.5;
-			inside = inside && -0.5 <= clipPosition.z && clipPosition.z <= 0.5;
-			insideAny = insideAny || inside;
+			if (shapeTexel.x < 0.5) {
+				// BOX: test against the unit cube in box-local space.
+				mat4 clipBox = mat4(
+					texture(clipBoxesTexture, vec2((t0 + 0.0) / 256.0, row)),
+					texture(clipBoxesTexture, vec2((t0 + 1.0) / 256.0, row)),
+					texture(clipBoxesTexture, vec2((t0 + 2.0) / 256.0, row)),
+					texture(clipBoxesTexture, vec2((t0 + 3.0) / 256.0, row))
+				);
+
+				vec4 clipPosition = clipBox * worldPosition;
+				inside = -0.5 <= clipPosition.x && clipPosition.x <= 0.5;
+				inside = inside && -0.5 <= clipPosition.y && clipPosition.y <= 0.5;
+				inside = inside && -0.5 <= clipPosition.z && clipPosition.z <= 0.5;
+			} else {
+				// CAPSULE: inside when distance from the point to the segment AB <= radius.
+				vec3 a = texture(clipBoxesTexture, vec2((t0 + 5.0) / 256.0, row)).xyz;
+				vec3 b = texture(clipBoxesTexture, vec2((t0 + 6.0) / 256.0, row)).xyz;
+				float radius = shapeTexel.y;
+
+				vec3 ab = b - a;
+				float denom = max(dot(ab, ab), 1e-12);
+				float t = clamp(dot(worldPosition.xyz - a, ab) / denom, 0.0, 1.0);
+				vec3 closest = a + t * ab;
+				inside = distance(worldPosition.xyz, closest) <= radius;
+			}
+
+			if (inside) {
+				insideAny = true;
+				vec4 colorTexel = texture(clipBoxesTexture, vec2((t0 + 7.0) / 256.0, row));
+				hitColor = colorTexel.rgb;
+				hitColorFlag = colorTexel.a;
+				// First matching primitive wins (determines the highlight color).
+				break;
+			}
 		}
 
 		if (!insideAny) {
@@ -617,7 +655,10 @@ void main() {
 			#endif
 		} else {
 			#if defined clip_highlight_inside
-				if (clipHighlightColorEnabled) {
+				if (hitColorFlag > 0.5) {
+					// Per-primitive color (e.g. pipes vs cubes in distinct colors).
+					vColor = clamp(hitColor * clipHighlightColorBoost, vec3(0.0), vec3(1.0));
+				} else if (clipHighlightColorEnabled) {
 					vColor = clamp(clipHighlightColor * clipHighlightColorBoost, vec3(0.0), vec3(1.0));
 				} else {
 					vColor.r += 0.5;
