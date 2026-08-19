@@ -84,6 +84,7 @@ Run the shared checks and browser suite on native WebGPU, fallback, and WebGL ba
 
 ## Start in
 
+- [F01 loader/encoding matrix](../evidence/f01/loader-matrix.md)
 - [F03 recorded APIs and ESM-entry decision](03-threejs-upgrade.md#recorded-decisions)
 - `src/rendering/core/`
 - `src/point-cloud-octree.ts`

@@ -74,6 +74,8 @@ Run the shared checks and picking browser matrix on all renderer lanes.
 
 ## Start in
 
+- [F01 material/shader/picker inventory](../evidence/f01/material-and-shader-inventory.md#picking-inventory)
+- [F01 external-consumer picking audit](../evidence/f01/external-consumer-audit.md#picking-requirements)
 - `src/point-cloud-octree-picker.ts`
 - `src/point-cloud-octree.ts`
 - `src/potree.ts`

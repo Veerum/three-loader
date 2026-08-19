@@ -68,7 +68,7 @@ recorded by F03.
 
 ## Start in
 
-- F01 benchmark harness and scenarios
+- [F01 benchmark harness and smoke instrumentation](../evidence/f01/benchmark-harness.md)
 - [F03 recorded benchmark baseline](03-threejs-upgrade.md#recorded-decisions)
 - `src/rendering/webgpu/`
 - `src/rendering/webgl/`

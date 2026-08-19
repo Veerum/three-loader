@@ -17,15 +17,18 @@ additional externally controlled branch.
 
 | Candidate                                    | Initial classification                          | F01 evidence / final decision |
 | -------------------------------------------- | ----------------------------------------------- | ----------------------------- |
-| Weighted rendering and its depth-map inputs  | Pending; likely multi-pass                      |                               |
-| Background texture blending                  | Pending                                         |                               |
-| Point-cloud checkerboard/stripe mixing       | Pending                                         |                               |
-| `renderDepth`                                | Pending                                         |                               |
-| `TreeType.KDTREE`                            | Pending; loaders in scope are octrees           |                               |
-| `useDrawingBufferSize`                       | Pending; likely renderer-state normalization    |                               |
-| `colorRgba`                                  | Pending; likely internal attribute-layout state |                               |
-| `useClipBox`/clip-box count shader selection | Pending; likely internal clipping state         |                               |
-| EDL and HQ-depth flags                       | Excluded by project scope                       |                               |
+| Weighted rendering and its depth-map inputs  | Pending; likely multi-pass                      | Used by `veerum-viewer` only in its HD multi-pass WebGL renderer; F09 decision pending. |
+| Background texture blending                  | Pending                                         | No repository or audited-consumer use found; F09 decision pending. |
+| Point-cloud checkerboard/stripe mixing       | Pending                                         | No repository or audited-consumer use found; F09 decision pending. |
+| `renderDepth`                                | Pending                                         | Present as a material uniform/shader branch; no audited-consumer use found; F09 decision pending. |
+| `TreeType.KDTREE`                            | Pending; loaders in scope are octrees           | No audited-consumer selection found; all F01 loader fixtures and in-scope loaders are octrees; F09 decision pending. |
+| `useDrawingBufferSize`                       | Pending; likely renderer-state normalization    | Source-observed screen-uniform path for drawing-buffer dimensions; no audited-consumer use found; F09 decision pending. |
+| `colorRgba`                                  | Pending; likely internal attribute-layout state | Set by `PointCloudOctree` for V2 and propagated by the viewer's HD pass; it selects the GLSL `rgba` input instead of `color`, and F01 smoke-covers both settings; F09 decision pending. |
+| `useClipBox`/clip-box count shader selection | Pending; likely internal clipping state         | Clip-box count is used and smoke-covered; assigning `useClipBox` alone does not select the define because `numClipBoxes > 0` controls it; F09 decision pending. |
+| EDL and HQ-depth flags                       | Excluded by project scope                       | Material EDL is unused by the viewer; HQ depth is used only in its HD multi-pass WebGL renderer; F09 decision pending. |
+
+The F01 entries above are evidence only. They do not pre-apply F09's include/exclude/defer decision
+rule or change F09's queued status.
 
 ## Decision rule
 

@@ -25,7 +25,9 @@
     "start:example": "webpack-dev-server --config webpack.config.example.js --mode development --progress",
     "build": "npm run clean && webpack --mode production --progress --config webpack.config.prod.js",
     "lint": "tslint --project tsconfig.json",
-    "test": "jest",
+    "test": "jest --testPathIgnorePatterns=/test/browser/",
+    "test:browser": "playwright test --config test/browser/playwright.config.cjs",
+    "benchmark:webgl": "node test/benchmark/webgl-benchmark.cjs",
     "format": "prettier \"*.{ts,js}\"",
     "format:write": "npm run format -- --write",
     "format:check": "npm run format -- --check",
@@ -50,6 +52,7 @@
     "three": "^0.170.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@babel/core": "^7.23.2",
     "@babel/preset-env": "^7.23.2",
     "@babel/preset-typescript": "^7.27.1",

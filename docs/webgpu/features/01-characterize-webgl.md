@@ -76,8 +76,34 @@ npm run benchmark:webgl -- --smoke
 
 ## Completion record
 
-- Commit/status:
-- Delivered paths:
-- Decisions for later features:
-- Verification:
-- Evidence:
+- Commit/status: Began from clean `67d9ff372955effe003d031f657a9ee71ba5acb1` on `JL-webgpu`;
+  F01 is complete in the uncommitted working tree. No commit was created.
+- Delivered paths: Playwright configuration/harness/spec under `test/browser/`, decoder matrix test
+  under `test/unit/`, shared fixtures under `test/webgl/fixtures/`, benchmark runner under
+  `test/benchmark/`, package scripts/dependency lock updates, and F01 evidence under
+  `docs/webgpu/evidence/f01/`.
+- Decisions for later features: `veerum-viewer` is usage evidence only, never a WebGPU validation
+  dependency; its native-material replacement/uniform-copy integrations require migration to
+  appearance; its weighted/HQ-depth renderer is active multi-pass WebGL behavior but remains outside
+  WebGPU parity. These constraints are promoted to the overview's Fixed decisions.
+- Verification: `npm test -- --runInBand` (2 suites, 5 tests), `npm run lint` (pass with existing
+  source warnings), `npm run build` (pass with existing bundle-size warnings), `npm run test:browser`
+  (2 tests), and `npm run benchmark:webgl -- --smoke` (1 smoke test) all pass on 2026-08-18.
+- Evidence: [loader matrix](../evidence/f01/loader-matrix.md),
+  [material/shader/picker inventory](../evidence/f01/material-and-shader-inventory.md),
+  [consumer audit](../evidence/f01/external-consumer-audit.md), and
+  [benchmark harness](../evidence/f01/benchmark-harness.md).
+
+## Working record
+
+- Started from clean worktree at `67d9ff372955effe003d031f657a9ee71ba5acb1` on `JL-webgpu`.
+- Dependency baseline is `package-lock.json` (lockfile v3); it pins Three.js `0.170.0`.
+- Dependencies were installed from that lockfile with `npm ci --ignore-scripts
+  --install-strategy=nested`; the pre-existing `node_modules` tree was not used as the baseline.
+- Read-only external audit covers `veerum-viewer` revision
+  `ccb23117c16e73e8e07610f0def851c3c07e5566`, whose recorded submodule gitlink is
+  `bc452193b6f91f2d9299505b75d31ff4ebfd3577`. The viewer was not built or tested.
+- Deterministic wire/decoder fixtures, fixed-camera WebGL behavior and picking, the splat-mesh route,
+  full inventories, and actual smoke instrumentation are implemented. The authoritative performance
+  baseline remains explicitly deferred to F03.
+- Every acceptance criterion is satisfied; F01 is Complete with no external-input blocker.

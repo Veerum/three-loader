@@ -34,8 +34,9 @@ behavior matrices, or benchmarks under `docs/webgpu/evidence/`; do not paste log
 
 - Updated: 2026-08-18
 - Architecture: decided
-- Implementation: not started
+- Implementation: in progress
 - Current feature: [F01 — Characterize current WebGL behavior](features/01-characterize-webgl.md)
+  is complete; F02 remains queued and has not started
 - WebGPU release policy: keep private through F12; prepare the public release in F13
 - Development policy: each feature lands on an internal feature branch. Intermediate internal API
   breaks are allowed; do not add temporary compatibility layers that will be removed before F13.
@@ -113,6 +114,15 @@ during the first `updatePointClouds()`, owns native rendering behavior.
   `rendering/core`; backend folders contain backend-specific behavior only.
 - F01 builds the deterministic browser/benchmark harness. F03 records the authoritative upgraded
   WebGL baseline, and F12 declares numeric thresholds from that baseline before optimization.
+- `veerum-viewer` revision `ccb23117c16e73e8e07610f0def851c3c07e5566` is F01 usage evidence
+  only. All WebGPU behavior, compatibility, and release validation stays repository-local to
+  `three-loader`; the viewer is not a WebGPU test harness or release gate.
+- The viewer's direct `pco.material` replacement, native uniform mutation/copying, and custom WebGL
+  materials are consumer migration requirements for the backend-neutral appearance API, not WebGPU
+  material contracts to preserve.
+- The viewer's weighted/HQ-depth renderer is evidenced active multi-pass WebGL behavior. It remains
+  outside WebGPU parity and is handled by F09's defer/migration audit unless a later product decision
+  explicitly expands scope.
 
 ### Renderer lanes
 
@@ -159,7 +169,7 @@ attribute arrays from a scene handle.
 
 | ID  | Feature                                                             | Status   | Agent            | Depends on             |
 | --- | ------------------------------------------------------------------- | -------- | ---------------- | ---------------------- |
-| F01 | [Characterize WebGL](features/01-characterize-webgl.md)             | Ready    | Terra — High     | —                      |
+| F01 | [Characterize WebGL](features/01-characterize-webgl.md)             | Complete | Terra — High      | —                      |
 | F02 | [Rendering boundary](features/02-rendering-boundary.md)             | Queued   | Sol — Extra High | F01                    |
 | F03 | [Upgrade Three.js](features/03-threejs-upgrade.md)                  | Queued   | Terra — High     | F02                    |
 | F04 | [Base WebGPU rendering](features/04-base-webgpu-rendering.md)       | Queued   | Sol — Extra High | F03                    |
