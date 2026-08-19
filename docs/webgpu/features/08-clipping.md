@@ -44,7 +44,7 @@ Run the shared checks and clipping browser matrix.
 - `src/materials/point-cloud-material.ts`
 - `src/materials/shaders/pointcloud.vert`
 - `src/rendering/webgpu/`
-- `src/rendering/core/appearance.ts`
+- `src/rendering/core/point-cloud-appearance.ts`
 
 ## Completion record
 

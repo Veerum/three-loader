@@ -77,7 +77,7 @@ npm run benchmark:webgl -- --smoke
 ## Completion record
 
 - Commit/status: Began from clean `67d9ff372955effe003d031f657a9ee71ba5acb1` on `JL-webgpu`;
-  F01 is complete in the uncommitted working tree. No commit was created.
+  F01 is complete and committed as `f23804af4a6f64b2b66b6b3365056cf9102648bb` on `JL-webgpu`.
 - Delivered paths: Playwright configuration/harness/spec under `test/browser/`, decoder matrix test
   under `test/unit/`, shared fixtures under `test/webgl/fixtures/`, benchmark runner under
   `test/benchmark/`, package scripts/dependency lock updates, and F01 evidence under

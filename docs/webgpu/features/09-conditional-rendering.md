@@ -41,6 +41,21 @@ Use F01's external-consumer evidence and record each decision in this file:
 
 Do not expose host-specific textures, targets, or backend types through common APIs.
 
+## Deliverables
+
+- Audit every `PointCloudAppearance` property that [F02's legacy property migration
+  table](../evidence/f02/legacy-property-migration.md) marked "pending F09": `weighted`, `useEDL`,
+  `hqDepthPass`, `blendDepthSupplement`, `blendHardness`, `depthMap`, `useTextureBlending`,
+  `backgroundMap`, `usePointCloudMixing`, `pointCloudID`, `pointCloudMixingMode`,
+  `pointCloudMixAngle`, `stripeDistanceX`, `stripeDistanceY`, `stripeDivisorX`, `stripeDivisorY`.
+  F02 added these to appearance provisionally, pending this feature's decision; they are not
+  pre-approved inclusions.
+- For each audited property, apply the decision rule above and record the outcome in this file's
+  candidate table.
+- Remove from `PointCloudAppearance` every property whose decision is exclude or defer. Removal is
+  required to satisfy this feature's own acceptance criterion below; do not leave excluded/deferred
+  properties in the common appearance API on the assumption that a later feature will remove them.
+
 ## Acceptance
 
 - Every candidate has an evidenced **include**, **exclude**, or **defer: multi-pass** decision.

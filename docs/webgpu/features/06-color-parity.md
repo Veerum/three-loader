@@ -1,10 +1,10 @@
 # F06 — Point color parity
 
-| Field      | Value |
-| ---------- | ----- |
-| Model      | Terra |
-| Reasoning  | High  |
-| Depends on | F05   |
+| Field      | Value     |
+| ---------- | --------- |
+| Model      | Terra     |
+| Reasoning  | High      |
+| Depends on | F02a, F05 |
 
 ## Outcome
 
@@ -44,7 +44,7 @@ Run the shared checks and color-mode browser matrix.
 - `src/materials/shaders/pointcloud.vert`
 - `src/materials/shaders/pointcloud.frag`
 - `src/rendering/webgpu/`
-- `src/rendering/core/appearance.ts`
+- `src/rendering/core/point-cloud-appearance.ts`
 
 ## Completion record
 

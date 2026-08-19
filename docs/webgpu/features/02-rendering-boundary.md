@@ -90,8 +90,28 @@ Run the shared checks and F01 browser suite.
 
 ## Completion record
 
-- Commit/status:
-- Delivered paths:
-- Decisions for later features:
-- Verification:
-- Evidence:
+- Commit/status: Began from clean committed F01 at
+  `f23804af4a6f64b2b66b6b3365056cf9102648bb` on `JL-webgpu`; F02 is complete in the uncommitted
+  working tree. No commit was created.
+- Delivered paths: backend-neutral renderer/appearance/adapter contracts under
+  `src/rendering/core/`, the WebGL adapter and default composition under `src/rendering/webgl/`,
+  point-cloud preparation/update delegation, source-safe V1/V2 disposal, picker adaptation, public
+  appearance/renderer exports, and focused Jest/Playwright coverage.
+- Decisions for later features: `Potree` owns an adapter registry composed with WebGL by default;
+  the later ESM-only entry can compose the WebGPU factory without importing WebGPU code into common
+  modules. The deprecated optional material argument remains ignored, matching its observed F01
+  behavior, but now explicitly binds the cloud to WebGL. Synchronous WebGL picking prepares the
+  cloud and reads decoded geometry plus appearance rather than treating `sceneNode` or the native
+  material as common contracts.
+- Verification: `npm test -- --runInBand` (3 suites, 13 tests), `npm run lint` (pass with existing
+  source warnings), `npm run build` (pass with existing bundle-size warnings),
+  `npm run test:browser` (3 tests), and `npm run benchmark:webgl -- --smoke` (1 smoke test) pass on
+  2026-08-19.
+- Known follow-ups: an audit of the merged implementation found two performance regressions
+  against pre-F02 WebGL behavior (shader recompile and gradient-texture churn on every
+  appearance change) plus coverage and robustness gaps. They are tracked in
+  [F02a](02a-rendering-boundary-issues.md) and deferred deliberately so the boundary could be
+  committed; F02a must close before F06.
+- Evidence: [legacy property migration](../evidence/f02/legacy-property-migration.md),
+  `test/unit/rendering-boundary.test.ts`, and the named F02 case in
+  `test/browser/webgl.spec.cjs`.

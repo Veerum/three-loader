@@ -32,14 +32,17 @@ behavior matrices, or benchmarks under `docs/webgpu/evidence/`; do not paste log
 
 ## Current status
 
-- Updated: 2026-08-18
+- Updated: 2026-08-19
 - Architecture: decided
 - Implementation: in progress
-- Current feature: [F01 — Characterize current WebGL behavior](features/01-characterize-webgl.md)
-  is complete; F02 remains queued and has not started
+- Next features: [F02a — Rendering boundary follow-ups](features/02a-rendering-boundary-issues.md)
+  and [F03 — Upgrade Three.js](features/03-threejs-upgrade.md). They are independent and may land
+  in either order; F02a must close before F06. See the implementation order table below for
+  per-feature status.
 - WebGPU release policy: keep private through F12; prepare the public release in F13
-- Development policy: each feature lands on an internal feature branch. Intermediate internal API
-  breaks are allowed; do not add temporary compatibility layers that will be removed before F13.
+- Development policy: every feature is committed directly on the shared internal branch `JL-webgpu`.
+  Intermediate internal API breaks are allowed; do not add temporary compatibility layers that will
+  be removed before F13.
 
 Status values: **Ready**, **Queued** (waiting on dependencies), **In progress**, **Complete**, and
 **Deferred**.
@@ -167,26 +170,27 @@ attribute arrays from a scene handle.
 
 ## Implementation order
 
-| ID  | Feature                                                             | Status   | Agent            | Depends on             |
-| --- | ------------------------------------------------------------------- | -------- | ---------------- | ---------------------- |
-| F01 | [Characterize WebGL](features/01-characterize-webgl.md)             | Complete | Terra — High      | —                      |
-| F02 | [Rendering boundary](features/02-rendering-boundary.md)             | Queued   | Sol — Extra High | F01                    |
-| F03 | [Upgrade Three.js](features/03-threejs-upgrade.md)                  | Queued   | Terra — High     | F02                    |
-| F04 | [Base WebGPU rendering](features/04-base-webgpu-rendering.md)       | Queued   | Sol — Extra High | F03                    |
-| F05 | [Adaptive sizing](features/05-adaptive-sizing.md)                   | Queued   | Sol — Extra High | F04                    |
-| F06 | [Color parity](features/06-color-parity.md)                         | Queued   | Terra — High     | F05                    |
-| F07 | [Point styling and filtering](features/07-point-styling.md)         | Queued   | Sol — High       | F06                    |
-| F08 | [Clipping](features/08-clipping.md)                                 | Queued   | Sol — High       | F07                    |
-| F09 | [Conditional rendering audit](features/09-conditional-rendering.md) | Queued   | Sol — High       | F01, F08               |
-| F10 | [Async picking](features/10-async-picking.md)                       | Queued   | Sol — Extra High | F08                    |
-| F11 | [Rendering source organization](features/11-source-organization.md) | Queued   | Terra — Medium   | F09, F10               |
-| F12 | [Performance](features/12-performance.md)                           | Queued   | Sol — Extra High | F11                    |
-| F13 | [Prepare release](features/13-prepare-release.md)                   | Queued   | Terra — High     | F12                    |
-| F14 | [Gaussian splats](features/14-gaussian-splats.md)                   | Deferred | Sol — Extra High | F13, separate approval |
+| ID   | Feature                                                                    | Status   | Depends on             |
+| ---- | -------------------------------------------------------------------------- | -------- | ---------------------- |
+| F01  | [Characterize WebGL](features/01-characterize-webgl.md)                    | Complete | —                      |
+| F02  | [Rendering boundary](features/02-rendering-boundary.md)                    | Complete | F01                    |
+| F02a | [Rendering boundary follow-ups](features/02a-rendering-boundary-issues.md) | Ready    | F02                    |
+| F03  | [Upgrade Three.js](features/03-threejs-upgrade.md)                         | Queued   | F02                    |
+| F04  | [Base WebGPU rendering](features/04-base-webgpu-rendering.md)              | Queued   | F03                    |
+| F05  | [Adaptive sizing](features/05-adaptive-sizing.md)                          | Queued   | F04                    |
+| F06  | [Color parity](features/06-color-parity.md)                                | Queued   | F02a, F05              |
+| F07  | [Point styling and filtering](features/07-point-styling.md)                | Queued   | F06                    |
+| F08  | [Clipping](features/08-clipping.md)                                        | Queued   | F07                    |
+| F09  | [Conditional rendering audit](features/09-conditional-rendering.md)        | Queued   | F01, F08               |
+| F10  | [Async picking](features/10-async-picking.md)                              | Queued   | F08                    |
+| F11  | [Rendering source organization](features/11-source-organization.md)        | Queued   | F09, F10               |
+| F12  | [Performance](features/12-performance.md)                                  | Queued   | F11                    |
+| F13  | [Prepare release](features/13-prepare-release.md)                          | Queued   | F12                    |
+| F14  | [Gaussian splats](features/14-gaussian-splats.md)                          | Deferred | F13, separate approval |
 
 Milestones:
 
-- Boundary complete: F01–F03.
+- Boundary complete: F01–F03, including F02a.
 - WebGPU MVP: F04–F05.
 - Point-cloud parity: F06–F10.
 - Release gate: F11–F12.

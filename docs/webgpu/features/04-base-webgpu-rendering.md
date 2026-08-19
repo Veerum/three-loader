@@ -89,13 +89,8 @@ Run the shared checks and browser suite on native WebGPU, fallback, and WebGL ba
 - `src/rendering/core/`
 - `src/point-cloud-octree.ts`
 - `src/point-cloud-octree-node.ts`
-- `src/loading/binary-loader.ts`
-- `src/loading/laslaz/las-laz-loader.ts`
-- `src/loading2/decoder.ts`
-- `src/loading2/brotli-decoder.ts`
-- `src/loading2/gltf-decoder.ts`
-- `src/loading2/gltf-splats-decoder.ts`
-- `src/loading2/octree-loader.ts`
+- `src/loading2/decoder.ts` (the accessor table above encodes the attribute names needed from every
+  other loader; consult a specific loader only if a fixture disagrees with the table)
 - `src/splats-mesh.ts`
 
 ## Completion record

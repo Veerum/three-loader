@@ -16,26 +16,31 @@ WebGPU code already created in its final location.
 ```text
 src/rendering/
   core/
-    appearance.ts
-    appearance-types.ts
+    point-cloud-appearance.ts
+    point-cloud-render-adapter.ts
+    point-cloud-renderer.ts
     classification.ts
     clipping.ts
     gradients/
-    render-adapter.ts
-    renderer-types.ts
-    object-state.ts
     picker.ts
   webgl/
+    webgl-point-cloud-render-adapter.ts
     material.ts
-    render-adapter.ts
     picker.ts
     shaders/
+    index.ts
   webgpu/
     material.ts
     render-adapter.ts
     picker.ts
     tsl/
 ```
+
+`point-cloud-appearance.ts`, `point-cloud-render-adapter.ts`, and `point-cloud-renderer.ts` under
+`core/`, and `webgl-point-cloud-render-adapter.ts` and `index.ts` under `webgl/`, are the names F02
+already shipped; F11 keeps them as-is rather than renaming. `classification.ts`, `clipping.ts`,
+`gradients/`, and `picker.ts` are created by the features that own that behavior (F06, F08, F10) and
+only need to land in these locations, not be renamed by F11.
 
 Loaders stay in `src/loading/`, `src/loading2/`, and `src/workers/`.
 Backend-neutral enums, gradients, classification data, clip-box types, appearance state, and picking

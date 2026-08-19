@@ -43,7 +43,7 @@ Run the shared checks and styling browser matrix.
 - `src/materials/shaders/pointcloud.vert`
 - `src/materials/shaders/pointcloud.frag`
 - `src/rendering/webgpu/`
-- `src/rendering/core/appearance.ts`
+- `src/rendering/core/point-cloud-appearance.ts`
 
 ## Completion record
 
