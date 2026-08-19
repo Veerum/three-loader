@@ -120,6 +120,7 @@ function pick(renderer: WebGLRenderer, camera: OrthographicCamera): Scenario {
   source.nodes[root.name] = root;
 
   const octree = new PointCloudOctree(new Potree('v1'), source);
+  octree.prepareForRenderer(renderer);
   const treeNode = octree.toTreeNode(root);
   octree.visibleNodes = [treeNode];
   octree.visibleGeometry = [root];
@@ -145,7 +146,7 @@ function pick(renderer: WebGLRenderer, camera: OrthographicCamera): Scenario {
   return { pixels: callbackRan ? 1 : 0, redPixels: shared ? 1 : 0, pointIndex };
 }
 
-function splatRoute(): boolean {
+function splatRoute(renderer: WebGLRenderer): boolean {
   const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
   const request = async () => new Response(new ArrayBuffer(0));
   const loader = new BinaryLoader({
@@ -172,6 +173,7 @@ function splatRoute(): boolean {
   source.nodes[root.name] = root;
 
   const octree = new PointCloudOctree(new Potree('v2'), source, undefined, false, 3);
+  octree.prepareForRenderer(renderer);
   octree.toTreeNode(root);
   octree.updateSplats(new OrthographicCamera(-1, 1, 1, -1, 0.1, 10), new Vector2(160, 160));
   return octree.splatsMesh !== null;
@@ -265,9 +267,126 @@ function run() {
     scenarios,
     pointCount: positions.length / 3,
     fixtureResults,
-    splatRoute: splatRoute(),
+    splatRoute: splatRoute(renderer),
     pickingLatencyMs,
     environment: environment(gl as WebGL2RenderingContext),
+  };
+}
+
+function renderingBoundary() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 160;
+  document.body.replaceChildren(canvas);
+  const renderer = new WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+  renderer.setSize(160, 160, false);
+
+  const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
+  const request = async () => new Response(new ArrayBuffer(0));
+  const loader = new BinaryLoader({
+    version: '1.7',
+    boundingBox: bounds,
+    scale: 1,
+    xhrRequest: request,
+  });
+  const source = new PointCloudOctreeGeometry(
+    loader,
+    bounds,
+    bounds.clone(),
+    new Vector3(),
+    request,
+  );
+  source.spacing = 1;
+  const root = new PointCloudOctreeGeometryNode('r', source, bounds);
+  const decodedGeometry = geometry();
+  const sourceArray = decodedGeometry.getAttribute('position').array;
+  root.geometry = decodedGeometry;
+  root.loaded = true;
+  root.numPoints = 3;
+  source.root = root;
+  source.nodes[root.name] = root;
+
+  const potree = new Potree('v1');
+  const octree = new PointCloudOctree(potree, source);
+  const materialBeforeUpdate = octree.material;
+  octree.appearance.size = 18;
+
+  const scene = new Scene();
+  scene.add(octree);
+  const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+  camera.position.z = 2;
+  scene.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+
+  potree.updatePointClouds([octree], camera, renderer);
+  const firstMaterial = octree.material;
+  const treeNode = octree.root as any;
+  const firstSceneNode = treeNode.sceneNode;
+  potree.updatePointClouds([octree], camera, renderer);
+  const stableAcrossUpdates = octree.material === firstMaterial;
+
+  const retainedColor = octree.appearance.color;
+  retainedColor.set(1, 0, 0);
+  potree.updatePointClouds([octree], camera, renderer);
+  const ignoredWithoutInvalidation = (firstMaterial as PointCloudMaterial).color.g === 1;
+  octree.appearance.invalidate();
+  potree.updatePointClouds([octree], camera, renderer);
+  const appliedAfterInvalidation = (firstMaterial as PointCloudMaterial).color.r === 1;
+
+  const secondCanvas = document.createElement('canvas');
+  const secondRenderer = new WebGLRenderer({ canvas: secondCanvas });
+  octree.prepareForRenderer(secondRenderer);
+  const stableAcrossRenderers = octree.material === firstMaterial;
+  secondRenderer.dispose();
+
+  let familyMismatchRejected = false;
+  try {
+    octree.prepareForRenderer({
+      isWebGPURenderer: true,
+      getPixelRatio: () => 1,
+      getSize: (target: Vector2) => target.set(160, 160),
+    });
+  } catch (_error) {
+    familyMismatchRejected = true;
+  }
+
+  let detachedBeforeSourceDisposal = false;
+  decodedGeometry.addEventListener('dispose', () => {
+    detachedBeforeSourceDisposal =
+      firstSceneNode.parent === null && firstSceneNode.geometry === undefined;
+  });
+  octree.dispose();
+  octree.dispose();
+
+  let disposedCloudSkipped = false;
+  try {
+    disposedCloudSkipped =
+      potree.updatePointClouds([octree], camera, renderer).numVisiblePoints === 0;
+  } catch (_error) {
+    disposedCloudSkipped = false;
+  }
+
+  let disposedInitializationRejected = false;
+  try {
+    octree.prepareForRenderer(renderer);
+  } catch (_error) {
+    disposedInitializationRejected = true;
+  }
+  renderer.dispose();
+
+  return {
+    compoundRequiresInvalidation: ignoredWithoutInvalidation && appliedAfterInvalidation,
+    appearanceBeforeUpdate: octree.appearance.size === 18,
+    detachedBeforeSourceDisposal,
+    disposedCloudSkipped,
+    disposedInitializationRejected,
+    familyMismatchRejected,
+    materialAfterDisposal: octree.material,
+    materialBeforeUpdate,
+    nativeSceneNode: firstSceneNode.isPoints === true,
+    rootGeometryReleased: root.geometry === undefined,
+    sourceArrayIntact: sourceArray.length === positions.length,
+    stableAcrossRenderers,
+    stableAcrossUpdates,
   };
 }
 
@@ -374,6 +493,8 @@ function benchmark(options: { frames: number }) {
 declare global {
   interface Window {
     __F01__: { run: typeof run; benchmark: typeof benchmark };
+    __F02__: { renderingBoundary: typeof renderingBoundary };
   }
 }
 window.__F01__ = { run, benchmark };
+window.__F02__ = { renderingBoundary };

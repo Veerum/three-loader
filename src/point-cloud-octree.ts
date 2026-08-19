@@ -1,22 +1,31 @@
 import {
   Box3,
+  BufferGeometry,
   Camera,
+  Material,
+  Mesh,
   Object3D,
-  Points,
   Ray,
   Sphere,
-  Vector3,
   Vector2,
+  Vector3,
   WebGLRenderer,
-  Mesh,
-  BufferGeometry,
 } from 'three';
 import { DEFAULT_MIN_NODE_PIXEL_SIZE, MAX_AMOUNT_OF_SPLATS } from './constants';
 import { OctreeGeometry } from './loading2/octree-geometry';
-import { PointCloudMaterial, PointSizeType } from './materials';
+import { PointSizeType } from './materials';
+import type { PointCloudMaterial } from './materials/point-cloud-material';
 import { PointCloudOctreeNode } from './point-cloud-octree-node';
 import { PickParams, PointCloudOctreePicker } from './point-cloud-octree-picker';
 import { PointCloudTree } from './point-cloud-tree';
+import { PointCloudAppearance } from './rendering/core/point-cloud-appearance';
+import { PointCloudRenderAdapter } from './rendering/core/point-cloud-render-adapter';
+import {
+  getPointCloudRendererFamily,
+  PointCloudRenderer,
+  PointCloudRendererFamily,
+} from './rendering/core/point-cloud-renderer';
+import { SplatsMesh } from './splats-mesh';
 import {
   IPointCloudGeometryNode,
   IPointCloudTreeNode,
@@ -25,7 +34,6 @@ import {
   PickPoint,
 } from './types';
 import { computeTransformedBoundingBox } from './utils/bounds';
-import { SplatsMesh } from './splats-mesh';
 
 const DEBUG_MODE = false;
 export class PointCloudOctree extends PointCloudTree {
@@ -34,7 +42,7 @@ export class PointCloudOctree extends PointCloudTree {
   pcoGeometry: PCOGeometry;
   boundingBox: Box3;
   boundingSphere: Sphere;
-  material: PointCloudMaterial;
+  readonly appearance: PointCloudAppearance;
   level: number = 0;
   maxLevel: number = Infinity;
   splatsMesh: SplatsMesh | null = null;
@@ -52,13 +60,16 @@ export class PointCloudOctree extends PointCloudTree {
 
   private visibleBounds: Box3 = new Box3();
   private picker: PointCloudOctreePicker | undefined;
+  private renderAdapter: PointCloudRenderAdapter | undefined;
   private renderAsSplats: boolean | null = null;
+  private rendererFamily: PointCloudRendererFamily | undefined;
   private loadHarmonics: boolean = false;
   private maxAmountOfSplats: number = MAX_AMOUNT_OF_SPLATS;
 
   constructor(
     potree: IPotree,
     pcoGeometry: PCOGeometry,
+    /** @deprecated Configure appearance instead. Supplying this argument only binds WebGL. */
     material?: PointCloudMaterial,
     loadHarmonics: boolean = false,
     maxAmountOfSplats: number = MAX_AMOUNT_OF_SPLATS,
@@ -76,15 +87,23 @@ export class PointCloudOctree extends PointCloudTree {
     this.position.copy(pcoGeometry.offset);
     this.updateMatrix();
 
-    this.material =
-      material || pcoGeometry instanceof OctreeGeometry
-        ? new PointCloudMaterial({ colorRgba: true })
-        : new PointCloudMaterial();
+    this.appearance = new PointCloudAppearance({
+      colorRgba: Boolean(material) || pcoGeometry instanceof OctreeGeometry,
+    });
+    this.initAppearance();
 
-    this.initMaterial(this.material);
+    // The legacy optional-material overload never reliably used the supplied instance. Retaining
+    // it binds the cloud to WebGL explicitly while appearance remains the supported configuration.
+    if (material) {
+      this.rendererFamily = 'webgl';
+    }
   }
 
-  private initMaterial(material: PointCloudMaterial): void {
+  get material(): Material | null {
+    return this.renderAdapter ? this.renderAdapter.material : null;
+  }
+
+  private initAppearance(): void {
     this.updateMatrixWorld(true);
 
     const { min, max } = computeTransformedBoundingBox(
@@ -93,25 +112,78 @@ export class PointCloudOctree extends PointCloudTree {
     );
 
     const bWidth = max.z - min.z;
-    material.heightMin = min.z - 0.2 * bWidth;
-    material.heightMax = max.z + 0.2 * bWidth;
+    this.appearance.updateElevationRange([min.z - 0.2 * bWidth, max.z + 0.2 * bWidth]);
+  }
+
+  prepareForRenderer(renderer: PointCloudRenderer): void {
+    const family = this.assertRendererCompatible(renderer);
+
+    if (this.renderAdapter) {
+      return;
+    }
+
+    const candidate = this.potree.renderAdapters.create(family, {
+      appearance: this.appearance,
+      pointCloud: this,
+    });
+
+    try {
+      if (candidate.family !== family) {
+        throw new Error(
+          `Point-cloud render adapter family ${candidate.family} does not match ${family}.`,
+        );
+      }
+      candidate.initialize(renderer);
+    } catch (error) {
+      candidate.dispose();
+      throw error;
+    }
+
+    this.renderAdapter = candidate;
+    this.rendererFamily = family;
+  }
+
+  assertRendererCompatible(renderer: PointCloudRenderer): PointCloudRendererFamily {
+    if (this.disposed) {
+      throw new Error('Cannot initialize a disposed point cloud.');
+    }
+
+    const family = getPointCloudRendererFamily(renderer);
+    if (this.rendererFamily && this.rendererFamily !== family) {
+      throw new Error(
+        `Point cloud is bound to ${this.rendererFamily} and cannot be used with ${family}.`,
+      );
+    }
+
+    return family;
+  }
+
+  updateRenderState(camera: Camera, renderer: PointCloudRenderer): void {
+    this.prepareForRenderer(renderer);
+    this.renderAdapter!.updateRenderState(camera, renderer);
+  }
+
+  updateSceneNode(node: PointCloudOctreeNode): void {
+    if (!this.renderAdapter) {
+      throw new Error('Point cloud must be prepared before updating scene nodes.');
+    }
+    this.renderAdapter.updateSceneNode(node);
   }
 
   dispose(): void {
-    if (this.root) {
-      this.root.dispose();
+    if (this.disposed) {
+      return;
     }
-
-    this.pcoGeometry.root.traverse((n) => this.potree.lru.remove(n));
-    this.pcoGeometry.dispose();
-    this.material.dispose();
-
-    this.visibleNodes = [];
-    this.visibleGeometry = [];
+    this.disposed = true;
 
     if (this.picker) {
       this.picker.dispose();
       this.picker = undefined;
+    }
+
+    if (this.renderAdapter) {
+      this.renderAdapter.dispose();
+      this.renderAdapter = undefined;
     }
 
     if (this.splatsMesh !== null) {
@@ -119,41 +191,50 @@ export class PointCloudOctree extends PointCloudTree {
       this.splatsMesh = null;
     }
 
-    this.disposed = true;
+    this.pcoGeometry.root.traverse((n) => this.potree.lru.remove(n));
+    this.pcoGeometry.dispose();
+
+    this.root = null;
+    this.visibleNodes = [];
+    this.visibleGeometry = [];
   }
 
   get pointSizeType(): PointSizeType {
-    return this.material.pointSizeType;
+    return this.appearance.pointSizeType;
   }
 
   set pointSizeType(value: PointSizeType) {
-    this.material.pointSizeType = value;
+    this.appearance.pointSizeType = value;
   }
 
   toTreeNode(
     geometryNode: IPointCloudGeometryNode,
     parent?: PointCloudOctreeNode | null,
   ): PointCloudOctreeNode {
-    const points = new Points(geometryNode.geometry, this.material);
-    const node = new PointCloudOctreeNode(geometryNode, points);
-    points.name = geometryNode.name;
-    points.position.copy(geometryNode.boundingBox.min);
-    points.frustumCulled = false;
-    points.onBeforeRender = PointCloudMaterial.makeOnBeforeRender(this, node);
+    if (!this.renderAdapter) {
+      throw new Error('Point cloud must be prepared before creating tree nodes.');
+    }
+
+    const node = this.renderAdapter.createTreeNode(geometryNode);
 
     if (parent) {
-      parent.sceneNode.add(points);
+      parent.sceneNode.add(node.sceneNode);
       parent.children[geometryNode.index] = node;
 
       geometryNode.oneTimeDisposeHandlers.push(() => {
         node.disposeSceneNode();
-        parent.sceneNode.remove(node.sceneNode);
         // Replace the tree node (rendered and in the GPU) with the geometry node.
         parent.children[geometryNode.index] = geometryNode;
       });
     } else {
       this.root = node;
-      this.add(points);
+      this.add(node.sceneNode);
+      geometryNode.oneTimeDisposeHandlers.push(() => {
+        node.disposeSceneNode();
+        if (!this.disposed) {
+          this.root = geometryNode;
+        }
+      });
     }
 
     return node;
@@ -284,6 +365,10 @@ export class PointCloudOctree extends PointCloudTree {
     ray: Ray,
     params: Partial<PickParams> = {},
   ): PickPoint | null {
+    if (this.disposed) {
+      return null;
+    }
+    this.prepareForRenderer(renderer);
     this.picker = this.picker || new PointCloudOctreePicker();
     return this.picker.pick(renderer, camera, ray, [this], params);
   }

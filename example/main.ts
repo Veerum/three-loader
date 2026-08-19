@@ -1,4 +1,4 @@
-import { ClipMode, PointCloudOctree } from '../src';
+import { PointCloudOctree, PointShape, PointSizeType } from '../src';
 import { Viewer } from './viewer';
 
 require('./main.css');
@@ -91,12 +91,14 @@ function setupPointCloud(version: 'v1' | 'v2' | 'splats', file: string, url: str
     .load(file, url, version == 'splats' ? 'v2' : version, !isIOS())
     .then((pco) => {
       pointClouds[version] = pco;
-      pco.material.size = 1.0;
+      pco.appearance.size = 1.0;
 
-      pco.material.pointColorType = 0;
+      pco.appearance.pointColorType = 0;
+      pco.appearance.pointSizeType = PointSizeType.ADAPTIVE;
+      pco.appearance.shape = PointShape.CIRCLE;
 
-      pco.material.clipMode = ClipMode.CLIP_HORIZONTALLY;
-      pco.material.clipExtent = [0.0, 0.0, 1.0, 1.0];
+      // pco.appearance.clipMode = ClipMode.CLIP_HORIZONTALLY;
+      // pco.appearance.clipExtent = [0.0, 0.0, 1.0, 1.0];
       pco.position.set(0, 0, 0);
 
       const camera = viewer.camera;

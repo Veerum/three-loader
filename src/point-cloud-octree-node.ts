@@ -1,17 +1,22 @@
-import { Box3, BufferGeometry, EventDispatcher, Object3D, Points, Sphere } from 'three';
+import { Box3, EventDispatcher, Object3D, Sphere } from 'three';
 import { IPointCloudGeometryNode, IPointCloudTreeNode } from './types';
 
 export class PointCloudOctreeNode extends EventDispatcher implements IPointCloudTreeNode {
   geometryNode: IPointCloudGeometryNode;
-  sceneNode: Points;
+  sceneNode: Object3D;
   pcIndex: number | undefined = undefined;
   boundingBoxNode: Object3D | null = null;
   readonly children: (IPointCloudTreeNode | null)[];
   readonly loaded = true;
   readonly isTreeNode: boolean = true;
   readonly isGeometryNode: boolean = false;
+  private sceneNodeDisposed = false;
 
-  constructor(geometryNode: IPointCloudGeometryNode, sceneNode: Points) {
+  constructor(
+    geometryNode: IPointCloudGeometryNode,
+    sceneNode: Object3D,
+    private readonly disposeSceneNodeHandler: () => void = () => undefined,
+  ) {
     super();
 
     this.geometryNode = geometryNode;
@@ -24,19 +29,9 @@ export class PointCloudOctreeNode extends EventDispatcher implements IPointCloud
   }
 
   disposeSceneNode(): void {
-    const node = this.sceneNode;
-
-    if (node.geometry instanceof BufferGeometry) {
-      const attributes = node.geometry.attributes;
-
-      // tslint:disable-next-line:forin
-      for (const key in attributes) {
-        delete (attributes[key] as any).array;
-        delete attributes[key];
-      }
-
-      node.geometry.dispose();
-      node.geometry = undefined as any;
+    if (!this.sceneNodeDisposed) {
+      this.disposeSceneNodeHandler();
+      this.sceneNodeDisposed = true;
     }
   }
 

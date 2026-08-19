@@ -1,8 +1,10 @@
-import { Box3, BufferGeometry, Camera, Sphere, Vector3, WebGLRenderer } from 'three';
+import { Box3, BufferGeometry, Camera, Sphere, Vector3 } from 'three';
 import { GetUrlFn, XhrRequest } from './loading/types';
 import { OctreeGeometry } from './loading2/octree-geometry';
 import { PointCloudOctree } from './point-cloud-octree';
 import { PointCloudOctreeGeometry } from './point-cloud-octree-geometry';
+import type { PointCloudRenderAdapterRegistry } from './rendering/core/point-cloud-render-adapter';
+import { PointCloudRenderer } from './rendering/core/point-cloud-renderer';
 import { LRU } from './utils/lru';
 
 export interface IPointCloudTreeNode {
@@ -26,7 +28,7 @@ export interface IPointCloudTreeNode {
 export interface IPointCloudGeometryNode extends IPointCloudTreeNode {
   geometry: BufferGeometry | undefined;
   children: ReadonlyArray<IPointCloudGeometryNode | null>;
-  oneTimeDisposeHandlers: Function[];
+  oneTimeDisposeHandlers: (() => void)[];
 
   loading: boolean;
   loaded: boolean;
@@ -58,6 +60,7 @@ export interface IPotree {
   maxNumNodesLoading: number;
   memoryScale: number;
   lru: LRU;
+  readonly renderAdapters: PointCloudRenderAdapterRegistry;
 
   loadPointCloud(
     url: string,
@@ -70,7 +73,7 @@ export interface IPotree {
   updatePointClouds(
     pointClouds: PointCloudOctree[],
     camera: Camera,
-    renderer: WebGLRenderer,
+    renderer: PointCloudRenderer,
     callback?: any,
   ): IVisibilityUpdateResult;
 }

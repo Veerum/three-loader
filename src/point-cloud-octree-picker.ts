@@ -5,6 +5,7 @@ import {
   LinearFilter,
   NearestFilter,
   NoBlending,
+  Object3D,
   Points,
   Ray,
   RGBAFormat,
@@ -19,6 +20,7 @@ import { COLOR_BLACK, DEFAULT_PICK_WINDOW_SIZE } from './constants';
 import { ClipMode, PointCloudMaterial, PointColorType } from './materials';
 import { PointCloudOctree } from './point-cloud-octree';
 import { PointCloudOctreeNode } from './point-cloud-octree-node';
+import { PointCloudAppearance } from './rendering/core/point-cloud-appearance';
 import { PickPoint, PointCloudHit } from './types';
 import { clamp } from './utils/math';
 
@@ -64,6 +66,7 @@ export class PointCloudOctreePicker {
     if (this.pickState) {
       this.pickState.material.dispose();
       this.pickState.renderTarget.dispose();
+      this.pickState = undefined;
     }
   }
 
@@ -169,7 +172,7 @@ export class PointCloudOctreePicker {
         continue;
       }
 
-      PointCloudOctreePicker.updatePickMaterial(pickMaterial, octree.material, params);
+      PointCloudOctreePicker.updatePickMaterial(pickMaterial, octree.appearance, params);
       pickMaterial.updateMaterial(octree, nodes, camera, renderer);
 
       if (params.onBeforePickRender) {
@@ -239,7 +242,11 @@ export class PointCloudOctreePicker {
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
       const sceneNode = node.sceneNode;
-      const tempNode = new Points(sceneNode.geometry, pickMaterial);
+      const geometry = node.geometryNode.geometry;
+      if (!geometry) {
+        throw new Error(`Cannot pick disposed geometry node ${node.name}.`);
+      }
+      const tempNode = new Points(geometry, pickMaterial);
       tempNode.matrix = sceneNode.matrix;
       tempNode.matrixWorld = sceneNode.matrixWorld;
       tempNode.matrixAutoUpdate = false;
@@ -257,27 +264,28 @@ export class PointCloudOctreePicker {
 
   private static updatePickMaterial(
     pickMaterial: PointCloudMaterial,
-    nodeMaterial: PointCloudMaterial,
+    appearance: PointCloudAppearance,
     params: Partial<PickParams>,
   ): void {
-    pickMaterial.pointSizeType = nodeMaterial.pointSizeType;
-    pickMaterial.shape = nodeMaterial.shape;
-    pickMaterial.size = nodeMaterial.size;
-    pickMaterial.minSize = nodeMaterial.minSize;
-    pickMaterial.maxSize = nodeMaterial.maxSize;
-    pickMaterial.classification = nodeMaterial.classification;
-    pickMaterial.useFilterByNormal = nodeMaterial.useFilterByNormal;
-    pickMaterial.filterByNormalThreshold = nodeMaterial.filterByNormalThreshold;
+    const snapshot = appearance.getSnapshot();
+    pickMaterial.pointSizeType = appearance.pointSizeType;
+    pickMaterial.shape = appearance.shape;
+    pickMaterial.size = appearance.size;
+    pickMaterial.minSize = appearance.minSize;
+    pickMaterial.maxSize = appearance.maxSize;
+    pickMaterial.classification = snapshot.classification;
+    pickMaterial.useFilterByNormal = appearance.useFilterByNormal;
+    pickMaterial.filterByNormalThreshold = appearance.filterByNormalThreshold;
 
     if (params.pickOutsideClipRegion) {
       pickMaterial.clipMode = ClipMode.DISABLED;
     } else {
-      pickMaterial.clipMode = nodeMaterial.clipMode;
-      pickMaterial.clipExtent = nodeMaterial.clipExtent;
+      pickMaterial.clipMode = appearance.clipMode;
+      pickMaterial.clipExtent = [...snapshot.clipExtent];
       pickMaterial.setClipBoxes(
-        nodeMaterial.clipMode === ClipMode.CLIP_OUTSIDE ||
-          nodeMaterial.clipMode === ClipMode.CLIP_INSIDE
-          ? nodeMaterial.clipBoxes
+        appearance.clipMode === ClipMode.CLIP_OUTSIDE ||
+          appearance.clipMode === ClipMode.CLIP_INSIDE
+          ? snapshot.clipBoxes.slice()
           : [],
       );
     }
@@ -340,14 +348,15 @@ export class PointCloudOctreePicker {
 
     const point: PickPoint = {};
 
-    const points = nodes[hit.pcIndex] && nodes[hit.pcIndex].node.sceneNode;
-    if (!points) {
+    const renderedNode = nodes[hit.pcIndex] && nodes[hit.pcIndex].node;
+    const geometry = renderedNode && renderedNode.geometryNode.geometry;
+    if (!renderedNode || !geometry) {
       return null;
     }
 
     point.pointCloud = nodes[hit.pcIndex].octree;
 
-    const attributes: BufferAttribute[] = (points.geometry as any).attributes;
+    const attributes: BufferAttribute[] = geometry.attributes as any;
 
     for (const property in attributes) {
       if (!attributes.hasOwnProperty(property)) {
@@ -358,9 +367,9 @@ export class PointCloudOctreePicker {
 
       // tslint:disable-next-line:prefer-switch
       if (property === 'position') {
-        PointCloudOctreePicker.addPositionToPickPoint(point, hit, values, points);
+        PointCloudOctreePicker.addPositionToPickPoint(point, hit, values, renderedNode.sceneNode);
       } else if (property === 'normal') {
-        PointCloudOctreePicker.addNormalToPickPoint(point, hit, values, points);
+        PointCloudOctreePicker.addNormalToPickPoint(point, hit, values, renderedNode.sceneNode);
       } else if (property === 'indices') {
         // TODO
       } else {
@@ -383,21 +392,23 @@ export class PointCloudOctreePicker {
     point: PickPoint,
     hit: PointCloudHit,
     values: BufferAttribute,
-    points: Points,
+    sceneNode: Object3D,
   ): void {
     point.position = new Vector3()
       .fromBufferAttribute(values, hit.pIndex)
-      .applyMatrix4(points.matrixWorld);
+      .applyMatrix4(sceneNode.matrixWorld);
   }
 
   private static addNormalToPickPoint(
     point: PickPoint,
     hit: PointCloudHit,
     values: BufferAttribute,
-    points: Points,
+    sceneNode: Object3D,
   ): void {
     const normal = new Vector3().fromBufferAttribute(values, hit.pIndex);
-    const normal4 = new Vector4(normal.x, normal.y, normal.z, 0).applyMatrix4(points.matrixWorld);
+    const normal4 = new Vector4(normal.x, normal.y, normal.z, 0).applyMatrix4(
+      sceneNode.matrixWorld,
+    );
     normal.set(normal4.x, normal4.y, normal4.z);
 
     point.normal = normal;

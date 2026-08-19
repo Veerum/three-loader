@@ -42,3 +42,21 @@ test('F01 WebGL benchmark smoke emits repeatable instrumentation', async ({ page
   });
   console.log(`F01_WEBGL_BENCHMARK_SMOKE=${JSON.stringify(benchmark)}`);
 });
+
+test('F02 WebGL rendering boundary preserves identity and source ownership', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
+  const report = await page.evaluate(() => window.__F02__.renderingBoundary());
+  expect(report.materialBeforeUpdate).toBe(null);
+  expect(report.appearanceBeforeUpdate).toBe(true);
+  expect(report.compoundRequiresInvalidation).toBe(true);
+  expect(report.stableAcrossUpdates).toBe(true);
+  expect(report.stableAcrossRenderers).toBe(true);
+  expect(report.familyMismatchRejected).toBe(true);
+  expect(report.nativeSceneNode).toBe(true);
+  expect(report.detachedBeforeSourceDisposal).toBe(true);
+  expect(report.disposedCloudSkipped).toBe(true);
+  expect(report.sourceArrayIntact).toBe(true);
+  expect(report.rootGeometryReleased).toBe(true);
+  expect(report.materialAfterDisposal).toBe(null);
+  expect(report.disposedInitializationRejected).toBe(true);
+});

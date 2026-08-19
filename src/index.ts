@@ -7,6 +7,8 @@ export * from './point-cloud-octree-picker';
 export * from './point-cloud-octree';
 export * from './point-cloud-tree';
 export * from './potree';
+export * from './rendering/core/point-cloud-appearance';
+export * from './rendering/core/point-cloud-renderer';
 export * from './types';
 export * from './version';
 export { SplatsMesh } from './splats-mesh';

@@ -53,7 +53,7 @@ export class OctreeGeometryNode implements IPointCloudGeometryNode {
   tightBoundingBox: Box3;
   numPoints: number;
   level!: number;
-  oneTimeDisposeHandlers: Function[];
+  oneTimeDisposeHandlers: (() => void)[];
 
   getLevel() {
     return this.level;
@@ -90,16 +90,16 @@ export class OctreeGeometryNode implements IPointCloudGeometryNode {
   }
 
   dispose(): void {
-    if (this.geometry && this.parent != null) {
-      this.geometry.dispose();
-      this.geometry = undefined;
-      this.loaded = false;
-
+    if (this.geometry) {
       for (let i = 0; i < this.oneTimeDisposeHandlers.length; i++) {
         const handler = this.oneTimeDisposeHandlers[i];
         handler();
       }
       this.oneTimeDisposeHandlers = [];
+
+      this.geometry.dispose();
+      this.geometry = undefined;
+      this.loaded = false;
     }
   }
 

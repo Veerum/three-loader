@@ -67,16 +67,16 @@ export class PointCloudOctreeGeometryNode
   }
 
   dispose(): void {
-    if (!this.geometry || !this.parent) {
+    if (!this.geometry) {
       return;
     }
+
+    this.oneTimeDisposeHandlers.forEach((handler) => handler());
+    this.oneTimeDisposeHandlers = [];
 
     this.geometry.dispose();
     this.geometry = undefined;
     this.loaded = false;
-
-    this.oneTimeDisposeHandlers.forEach((handler) => handler());
-    this.oneTimeDisposeHandlers = [];
   }
 
   /**

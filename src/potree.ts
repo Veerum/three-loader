@@ -12,19 +12,27 @@ import {
 } from 'three';
 import {
   DEFAULT_POINT_BUDGET,
+  MAX_AMOUNT_OF_SPLATS,
   MAX_LOADS_TO_GPU,
   MAX_NUM_NODES_LOADING,
-  MAX_AMOUNT_OF_SPLATS,
-  PERSPECTIVE_CAMERA,
   MEMORY_SCALE,
+  PERSPECTIVE_CAMERA,
 } from './constants';
 import { FEATURES } from './features';
 import { BinaryLoader, GetUrlFn, loadPOC } from './loading';
+import { LasLazLoader } from './loading/laslaz/las-laz-loader';
+import { LAZLoader } from './loading/laslaz/LAZLoader';
 import { loadOctree } from './loading2/load-octree';
 import { ClipMode } from './materials';
 import { PointCloudOctree } from './point-cloud-octree';
 import { PointCloudOctreeNode } from './point-cloud-octree-node';
 import { PickParams, PointCloudOctreePicker } from './point-cloud-octree-picker';
+import { PointCloudRenderAdapterRegistry } from './rendering/core/point-cloud-render-adapter';
+import {
+  getPointCloudRendererFamily,
+  PointCloudRenderer,
+} from './rendering/core/point-cloud-renderer';
+import { createWebGLPointCloudRenderAdapterRegistry } from './rendering/webgl';
 import { isGeometryNode, isTreeNode } from './type-predicates';
 import {
   IPointCloudGeometryNode,
@@ -37,8 +45,6 @@ import {
 import { BinaryHeap } from './utils/binary-heap';
 import { Box3Helper } from './utils/box3-helper';
 import { LRU } from './utils/lru';
-import { LasLazLoader } from './loading/laslaz/las-laz-loader';
-import { LAZLoader } from './loading/laslaz/LAZLoader';
 
 export class QueueItem {
   constructor(
@@ -72,11 +78,16 @@ export class Potree implements IPotree {
   memoryScale: number = MEMORY_SCALE;
   features = FEATURES;
   lru = new LRU(this._pointBudget);
+  readonly renderAdapters: PointCloudRenderAdapterRegistry;
 
   private readonly loadGeometry: GeometryLoader;
 
-  constructor(version: PotreeVersion = 'v1') {
+  constructor(
+    version: PotreeVersion = 'v1',
+    renderAdapters = createWebGLPointCloudRenderAdapterRegistry(),
+  ) {
     this.loadGeometry = GEOMETRY_LOADERS[version];
+    this.renderAdapters = renderAdapters;
   }
 
   loadPointCloud(
@@ -95,9 +106,22 @@ export class Potree implements IPotree {
   updatePointClouds(
     pointClouds: PointCloudOctree[],
     camera: Camera,
-    renderer: WebGLRenderer,
+    renderer: PointCloudRenderer,
     callback = () => {},
   ): IVisibilityUpdateResult {
+    // Classify once before touching any cloud so an unknown renderer cannot partially initialize.
+    getPointCloudRendererFamily(renderer);
+    for (const pointCloud of pointClouds) {
+      if (!pointCloud.disposed) {
+        pointCloud.assertRendererCompatible(renderer);
+      }
+    }
+    for (const pointCloud of pointClouds) {
+      if (!pointCloud.disposed) {
+        pointCloud.prepareForRenderer(renderer);
+      }
+    }
+
     const result = this.updateVisibility(pointClouds, camera, renderer);
 
     for (let i = 0; i < pointClouds.length; i++) {
@@ -106,7 +130,7 @@ export class Potree implements IPotree {
         continue;
       }
 
-      pointCloud.material.updateMaterial(pointCloud, pointCloud.visibleNodes, camera, renderer);
+      pointCloud.updateRenderState(camera, renderer);
       pointCloud.updateVisibleBounds();
       pointCloud.updateBoundingBoxes();
 
@@ -127,8 +151,12 @@ export class Potree implements IPotree {
     ray: Ray,
     params: Partial<PickParams> = {},
   ): PickPoint | null {
+    const activePointClouds = pointClouds.filter((pointCloud) => !pointCloud.disposed);
+    for (const pointCloud of activePointClouds) {
+      pointCloud.prepareForRenderer(renderer);
+    }
     Potree.picker = Potree.picker || new PointCloudOctreePicker();
-    return Potree.picker.pick(renderer, camera, ray, pointClouds, params);
+    return Potree.picker.pick(renderer, camera, ray, activePointClouds, params);
   }
 
   get pointBudget(): number {
@@ -156,7 +184,7 @@ export class Potree implements IPotree {
   private updateVisibility(
     pointClouds: PointCloudOctree[],
     camera: Camera,
-    renderer: WebGLRenderer,
+    renderer: PointCloudRenderer,
   ): IVisibilityUpdateResult {
     let numVisiblePoints = 0;
 
@@ -257,11 +285,7 @@ export class Potree implements IPotree {
   ): void {
     this.lru.touch(node.geometryNode);
 
-    const sceneNode = node.sceneNode;
-    sceneNode.visible = true;
-    sceneNode.material = pointCloud.material;
-    sceneNode.updateMatrix();
-    sceneNode.matrixWorld.multiplyMatrices(pointCloud.matrixWorld, sceneNode.matrix);
+    pointCloud.updateSceneNode(node);
 
     visibleNodes.push(node);
     pointCloud.visibleNodes.push(node);
@@ -334,9 +358,10 @@ export class Potree implements IPotree {
   }
 
   private shouldClip(pointCloud: PointCloudOctree, boundingBox: Box3): boolean {
-    const material = pointCloud.material;
+    const appearance = pointCloud.appearance;
+    const clipBoxes = appearance.getSnapshot().clipBoxes;
 
-    if (material.numClipBoxes === 0 || material.clipMode !== ClipMode.CLIP_OUTSIDE) {
+    if (clipBoxes.length === 0 || appearance.clipMode !== ClipMode.CLIP_OUTSIDE) {
       return false;
     }
 
@@ -344,7 +369,6 @@ export class Potree implements IPotree {
     pointCloud.updateMatrixWorld(true);
     box2.applyMatrix4(pointCloud.matrixWorld);
 
-    const clipBoxes = material.clipBoxes;
     for (let i = 0; i < clipBoxes.length; i++) {
       const clipMatrixWorld = clipBoxes[i].matrix;
       const clipBoxWorld = new Box3(
@@ -397,12 +421,12 @@ export class Potree implements IPotree {
           .multiply(camera.projectionMatrix)
           .multiply(inverseViewMatrix)
           .multiply(worldMatrix);
-        frustums.push(new Frustum().setFromProjectionMatrix(frustumMatrix));
+        frustums[i] = new Frustum().setFromProjectionMatrix(frustumMatrix);
 
         // Camera position in object space
         inverseWorldMatrix.copy(worldMatrix).invert();
         cameraMatrix.identity().multiply(inverseWorldMatrix).multiply(camera.matrixWorld);
-        cameraPositions.push(new Vector3().setFromMatrixPosition(cameraMatrix));
+        cameraPositions[i] = new Vector3().setFromMatrixPosition(cameraMatrix);
 
         if (pointCloud.visible && pointCloud.root !== null) {
           const weight = Number.MAX_VALUE;
