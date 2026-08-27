@@ -185,9 +185,9 @@ export class PointCloudMaterial extends RawShaderMaterial {
 
   numClipBoxes: number = 0;
   clipBoxes: IClipBox[] = [];
-  clipBoxesTexture: Texture | undefined;
+  clipBoxesTexture: DataTexture | undefined;
 
-  visibleNodesTexture: Texture | undefined;
+  visibleNodesTexture: DataTexture | undefined;
   visibleNodeTextureOffsets = new Map<string, number>();
 
   private _gradient = SPECTRAL;
@@ -362,9 +362,11 @@ export class PointCloudMaterial extends RawShaderMaterial {
 
     this.classification = DEFAULT_CLASSIFICATION;
 
-    this.defaultAttributeValues.normal = [0, 0, 0];
-    this.defaultAttributeValues.classification = [0, 0, 0];
-    this.defaultAttributeValues.indices = [0, 0, 0, 0];
+    Object.assign(this.defaultAttributeValues, {
+      normal: [0, 0, 0],
+      classification: [0, 0, 0],
+      indices: [0, 0, 0, 0],
+    });
 
     this.vertexColors = true;
 
@@ -495,8 +497,8 @@ export class PointCloudMaterial extends RawShaderMaterial {
       define('color_rgba');
     }
 
-    if(this.hqDepthPass) {
-      define('hq_depth_pass')
+    if (this.hqDepthPass) {
+      define('hq_depth_pass');
     }
 
     define('MAX_POINT_LIGHTS 0');
@@ -547,7 +549,7 @@ export class PointCloudMaterial extends RawShaderMaterial {
 
     const texture = this.clipBoxesTexture;
     if (texture) {
-      texture.image.data.set(clipBoxesArray);
+      texture.image.data!.set(clipBoxesArray);
       texture.needsUpdate = true;
     }
 
@@ -701,21 +703,21 @@ export class PointCloudMaterial extends RawShaderMaterial {
       }
 
       const density = (node.geometryNode as any).density;
-      if(density && typeof density == 'number' && !Number.isNaN(density)){
-				let lodOffset = Math.log2(density) / 2 - 1.5;
+      if (density && typeof density == 'number' && !Number.isNaN(density)) {
+        let lodOffset = Math.log2(density) / 2 - 1.5;
 
-				let offsetUint8 = (lodOffset + 10) * 10;
+        let offsetUint8 = (lodOffset + 10) * 10;
 
-				data[i * 4 + 3] = offsetUint8;
-			} else {
-				data[i * 4 + 3] = 100;
-			}
+        data[i * 4 + 3] = offsetUint8;
+      } else {
+        data[i * 4 + 3] = 100;
+      }
       // data[i * 4 + 3] = node.name.length;
     }
 
     const texture = this.visibleNodesTexture;
     if (texture) {
-      texture.image.data.set(data);
+      texture.image.data!.set(data);
       texture.needsUpdate = true;
     }
   }

@@ -12,7 +12,7 @@ import {
 } from 'three';
 import { IClassification, IGradient } from '../materials/types';
 
-export function generateDataTexture(width: number, height: number, color: Color): Texture {
+export function generateDataTexture(width: number, height: number, color: Color): DataTexture {
   const size = width * height;
   const data = new Uint8Array(4 * size);
 
@@ -103,7 +103,18 @@ export function generateClipboxTexture(): DataTexture {
 
   const data = new Float32Array(size * 4);
 
-  const texture = new DataTexture(data, width, height, RGBAFormat, FloatType, UVMapping, ClampToEdgeWrapping, ClampToEdgeWrapping, NearestFilter, NearestFilter);
+  const texture = new DataTexture(
+    data,
+    width,
+    height,
+    RGBAFormat,
+    FloatType,
+    UVMapping,
+    ClampToEdgeWrapping,
+    ClampToEdgeWrapping,
+    NearestFilter,
+    NearestFilter,
+  );
   texture.needsUpdate = true;
 
   return texture;
