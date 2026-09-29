@@ -223,6 +223,14 @@ export class PointCloudOctree extends PointCloudTree {
     bbRoot.children = visibleBoxes;
   }
 
+  // Render-node translations are absolute within the octree, even though their
+  // scene graph is nested. Potree updates them in updateTreeNodeVisibility.
+  // Match updateMatrixWorld: never recursively accumulate those translations.
+  updateWorldMatrix(updateParents: boolean, _updateChildren: boolean, _force = false): void {
+    if (updateParents && this.parent) this.parent.updateWorldMatrix(true, false);
+    this.updateMatrixWorld(true);
+  }
+
   updateMatrixWorld(force: boolean): void {
     if (this.matrixAutoUpdate === true) {
       this.updateMatrix();
