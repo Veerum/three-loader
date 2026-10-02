@@ -1,8 +1,10 @@
 import {
+  Box3,
   BufferAttribute,
   Camera,
   Color,
   LinearFilter,
+  Matrix3,
   NearestFilter,
   NoBlending,
   Points,
@@ -11,7 +13,6 @@ import {
   Scene,
   Sphere,
   Vector3,
-  Vector4,
   WebGLRenderer,
   WebGLRenderTarget,
 } from 'three';
@@ -56,6 +57,7 @@ interface RenderedNode {
 
 export class PointCloudOctreePicker {
   private static readonly helperVec3 = new Vector3();
+  private static readonly helperBox = new Box3();
   private static readonly helperSphere = new Sphere();
   private static readonly clearColor = new Color();
   private pickState: IPickState | undefined;
@@ -196,9 +198,10 @@ export class PointCloudOctreePicker {
 
     const rayClone = ray.clone();
     for (const node of octree.visibleNodes) {
-      const sphere = PointCloudOctreePicker.helperSphere
-        .copy(node.boundingSphere)
-        .applyMatrix4(octree.matrixWorld);
+      const sphere = PointCloudOctreePicker.helperBox
+        .copy(node.boundingBox)
+        .applyMatrix4(octree.matrixWorld)
+        .getBoundingSphere(PointCloudOctreePicker.helperSphere);
 
       if (rayClone.intersectsSphere(sphere)) {
         nodesOnRay.push(node);
@@ -397,8 +400,7 @@ export class PointCloudOctreePicker {
     points: Points,
   ): void {
     const normal = new Vector3().fromBufferAttribute(values, hit.pIndex);
-    const normal4 = new Vector4(normal.x, normal.y, normal.z, 0).applyMatrix4(points.matrixWorld);
-    normal.set(normal4.x, normal4.y, normal4.z);
+    normal.applyNormalMatrix(new Matrix3().getNormalMatrix(points.matrixWorld));
 
     point.normal = normal;
   }
