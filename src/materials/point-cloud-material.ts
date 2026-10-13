@@ -663,7 +663,7 @@ export class PointCloudMaterial extends RawShaderMaterial {
       this.screenHeight = PointCloudMaterial.helperVec2.height;
     }
 
-    const maxScale = Math.max(octree.scale.x, octree.scale.y, octree.scale.z);
+    const maxScale = octree.matrixWorld.getMaxScaleOnAxis();
     this.spacing = octree.pcoGeometry.spacing * maxScale;
     this.octreeSize = octree.pcoGeometry.boundingBox.getSize(PointCloudMaterial.helperVec3).x;
     if (
