@@ -641,6 +641,20 @@ export class PointCloudMaterial extends RawShaderMaterial {
     camera: Camera,
     renderer: WebGLRenderer,
   ): void {
+    this.updateCameraUniforms(camera, renderer);
+
+    const maxScale = octree.matrixWorld.getMaxScaleOnAxis();
+    this.spacing = octree.pcoGeometry.spacing * maxScale;
+    this.octreeSize = octree.pcoGeometry.boundingBox.getSize(PointCloudMaterial.helperVec3).x;
+    if (
+      this.pointSizeType === PointSizeType.ADAPTIVE ||
+      this.pointColorType === PointColorType.LOD
+    ) {
+      this.updateVisibilityTextureData(visibleNodes);
+    }
+  }
+
+  private updateCameraUniforms(camera: Camera, renderer: WebGLRenderer) {
     const pixelRatio = renderer.getPixelRatio();
 
     if (camera.type === PERSPECTIVE_CAMERA) {
@@ -661,16 +675,6 @@ export class PointCloudMaterial extends RawShaderMaterial {
       renderer.getDrawingBufferSize(PointCloudMaterial.helperVec2);
       this.screenWidth = PointCloudMaterial.helperVec2.width;
       this.screenHeight = PointCloudMaterial.helperVec2.height;
-    }
-
-    const maxScale = octree.matrixWorld.getMaxScaleOnAxis();
-    this.spacing = octree.pcoGeometry.spacing * maxScale;
-    this.octreeSize = octree.pcoGeometry.boundingBox.getSize(PointCloudMaterial.helperVec3).x;
-    if (
-      this.pointSizeType === PointSizeType.ADAPTIVE ||
-      this.pointColorType === PointColorType.LOD
-    ) {
-      this.updateVisibilityTextureData(visibleNodes);
     }
   }
 
@@ -728,13 +732,14 @@ export class PointCloudMaterial extends RawShaderMaterial {
     pcIndex?: number,
   ) {
     return (
-      _renderer: WebGLRenderer,
+      renderer: WebGLRenderer,
       _scene: Scene,
-      _camera: Camera,
+      camera: Camera,
       _geometry: BufferGeometry,
       material: Material,
     ) => {
       const pointCloudMaterial = material as PointCloudMaterial;
+      pointCloudMaterial.updateCameraUniforms(camera, renderer);
       const materialUniforms = pointCloudMaterial.uniforms;
 
       materialUniforms.level.value = node.level;
