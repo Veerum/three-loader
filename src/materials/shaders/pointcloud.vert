@@ -412,6 +412,11 @@ vec3 getCompositeColor() {
 	return c;
 }
 
+uniform int selectionCount;
+uniform mat4 selectionBoxes[32];
+uniform vec3 selectionColors[32];
+out vec4 vSelection;
+
 void main() {
 	vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
 
@@ -637,4 +642,12 @@ void main() {
 		vColor = vec3(1. - gl_Position.z / gl_Position.w);
 	}
 
+	vSelection = vec4(0.0);
+	for (int i = 0; i < selectionCount; i++) {
+		vec3 p = (selectionBoxes[i] * modelMatrix * vec4(position, 1.0)).xyz;
+		if (all(lessThanEqual(abs(p), vec3(0.5)))) {
+			vSelection = vec4(selectionColors[i], 1.0);
+			break;
+		}
+	}
 }

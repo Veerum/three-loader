@@ -75,8 +75,15 @@ out vec4 outFragColor;
 
 float specularStrength = 1.0;
 
+uniform bool renderDepth;
+uniform bool selectionMask;
+in vec4 vSelection;
+
 void main() {
 	vec3 color = vColor;
+	#if !defined(color_type_depth) && !defined(color_type_point_index) && !defined(hq_depth_pass)
+		if (!renderDepth && vSelection.a > 0.0) color = mix(color, vSelection.rgb, 0.35);
+	#endif
 	float depth = gl_FragCoord.z;
 
 	#if defined (clip_horizontally) || defined (clip_vertically)
@@ -320,4 +327,7 @@ void main() {
 			outFragColor = highlightedPointColor;
 		}
 	#endif
+
+	// Preserve all clipping/shape discards; context points still write depth.
+	if (selectionMask) outFragColor = vec4(vSelection.rgb * vSelection.a, vSelection.a);
 }

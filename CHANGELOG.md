@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## Unreleased
+
+- Add immutable point-cloud selections, native material highlighting and an owned colored occupancy-mask pass.
+- Preserve depth/pick output and clipping without consumer shader or callback patches.
+
 ### [0.5.19](https://github.com/pnext/three-loader/compare/v0.5.18...v0.5.19) (2025-08-27)
 
 

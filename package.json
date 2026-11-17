@@ -26,14 +26,15 @@
     "build": "npm run clean && webpack --mode production --progress --config webpack.config.prod.js --config-name umd && webpack --mode production --progress --config webpack.config.prod.js --config-name module",
     "build:esm": "npm run clean && webpack --mode production --progress --config webpack.config.prod.js --config-name module",
     "lint": "tslint --project tsconfig.json",
-    "test": "jest",
+    "test": "jest && npm run test:selection",
     "format": "prettier \"*.{ts,js}\"",
     "format:write": "npm run format -- --write",
     "format:check": "npm run format -- --check",
     "commit": "git-cz",
     "prerelease": "npm run build",
     "release": "standard-version",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:selection": "npm run build:esm && node --test tests/selection-checks.mjs"
   },
   "exports": {
     "./package.json": "./package.json",

@@ -29,6 +29,7 @@ import {
 } from '../constants';
 import { PointCloudOctree } from '../point-cloud-octree';
 import { PointCloudOctreeNode } from '../point-cloud-octree-node';
+import { PointCloudSelection } from '../point-cloud-selection';
 import { byLevelAndIndex } from '../utils/utils';
 import { DEFAULT_CLASSIFICATION } from './classification';
 import { ClipMode, IClipBox } from './clipping';
@@ -42,6 +43,7 @@ import {
   TreeType,
 } from './enums';
 import { SPECTRAL } from './gradients';
+import { createSelectionUniforms, updateSelectionUniforms } from './selection-uniforms';
 import {
   generateClassificationTexture,
   generateClipboxTexture,
@@ -199,6 +201,7 @@ export class PointCloudMaterial extends RawShaderMaterial {
   );
 
   uniforms: IPointCloudMaterialUniforms & Record<string, IUniform<any>> = {
+    ...createSelectionUniforms(),
     bbSize: makeUniform('fv', [0, 0, 0] as [number, number, number]),
     blendDepthSupplement: makeUniform('f', 0.0),
     blendHardness: makeUniform('f', 2.0),
@@ -519,6 +522,12 @@ export class PointCloudMaterial extends RawShaderMaterial {
     }
 
     return PointCloudMixingMode.CHECKBOARD;
+  }
+
+  /** Set colored box highlights for the standard color pass. Does not alter clipping or picking. */
+  setSelection(selection?: PointCloudSelection): void {
+    updateSelectionUniforms(this.uniforms, selection);
+    this.uniformsNeedUpdate = true;
   }
 
   setClipBoxes(clipBoxes: IClipBox[]): void {
