@@ -12,3 +12,6 @@ export * from './version';
 export { SplatsMesh } from './splats-mesh';
 export { loadPOC as V1_LOADER } from './loading';
 export { loadOctree as V2_LOADER } from './loading2';
+
+export { PointCloudSelection, PointCloudSelectionRegion } from './point-cloud-selection';
+export { PointCloudSelectionMask } from './point-cloud-selection-mask';
